@@ -18,6 +18,7 @@ repositories {
 }
 
 dependencies {
+	implementation("org.springframework.boot:spring-boot-starter-actuator:2.5.4")
 	implementation("org.springframework.boot:spring-boot-starter-data-jpa:2.5.5")
 	implementation("org.springframework.boot:spring-boot-starter-web:2.5.5")
 	implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.12.5")
