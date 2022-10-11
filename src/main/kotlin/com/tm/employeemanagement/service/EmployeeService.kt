@@ -34,7 +34,7 @@ class EmployeeService(private val employeeRepo: EmployeeRepo) {
         return employeeRepo.findEmployeeById(id)
     }
 
-    fun deleteEmployee(id: Long) {
-        employeeRepo.deleteEmployeeById(id)
+    fun deleteEmployee(id: Long) : Int {
+        return employeeRepo.deleteEmployeeById(id)
     }
 }

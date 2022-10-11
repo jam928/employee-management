@@ -64,6 +64,13 @@ class EmployeeControllerIntegrationTest {
     }
 
     @Test
+    fun testGetEmployeeByNotFoundId() {
+        val mvcResult = this.mockMvc.perform(get("/employee/find/${300}")).andReturn()
+        assertEquals(mvcResult.response.contentAsString, "Results not found")
+        assertEquals(mvcResult.response.status, 404)
+    }
+
+    @Test
     fun testUpdateEmployee() {
         // Get the original employee
         var mvcResult = this.mockMvc.perform(get("/employee/find/${1}")).andReturn()
