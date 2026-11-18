@@ -1,19 +1,16 @@
 package com.tm.employeemanagement.repo
 
-import org.springframework.boot.actuate.trace.http.HttpTrace
-import org.springframework.boot.actuate.trace.http.InMemoryHttpTraceRepository
-import org.springframework.stereotype.Repository
-import java.util.concurrent.atomic.AtomicReference
+import org.springframework.boot.actuate.web.exchanges.InMemoryHttpExchangeRepository
+import org.springframework.stereotype.Component
 
-@Repository
-class CustomTraceRepository() : InMemoryHttpTraceRepository() {
-    var lastTrace = AtomicReference<HttpTrace>()
-    final val limit = 1000
-    init {
-        super.setCapacity(limit)
+/** Keeps the last 1000 HTTP requests for the /actuator/httpexchanges endpoint. */
+@Component
+class CustomTraceRepository : InMemoryHttpExchangeRepository() {
+    companion object {
+        const val LIMIT = 1000
     }
 
-    override fun add(map: HttpTrace) {
-        super.add(map)
+    init {
+        setCapacity(LIMIT)
     }
 }

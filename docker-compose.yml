@@ -1,0 +1,68 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: employee-management-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: employee-management
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    image: eclipse-temurin:21-jdk
+    container_name: employee-management-app
+    restart: unless-stopped
+    working_dir: /app
+    command: ["./gradlew", "bootRun", "--no-daemon"]
+    volumes:
+      - .:/app
+      # Keep the container's Gradle cache and build output separate from the host's
+      - gradle-cache:/root/.gradle
+      - /app/.gradle
+      - /app/build
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/employee-management?allowPublicKeyRetrieval=true&useSSL=false
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+    ports:
+      - "8080:8080"
+
+  # Runs unit + integration tests and prints a JaCoCo coverage summary.
+  # Integration tests start their own MySQL via Testcontainers, so this service
+  # talks to the host's Docker daemon through the mounted socket.
+  #   docker compose run --rm tests
+  tests:
+    image: eclipse-temurin:21-jdk
+    container_name: employee-management-tests
+    profiles: ["test"]
+    working_dir: /app
+    command: ["sh", "./gradlew", "test", "--no-daemon"]
+    volumes:
+      - .:/app
+      - gradle-cache:/root/.gradle
+      - /app/.gradle
+      - /app/build
+      # Expose the test + coverage reports on the host at ./build/reports
+      - ./build/reports:/app/build/reports
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Testcontainers' MySQL ports are published on the Docker host, not inside this container
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  mysql-data:
+  gradle-cache:

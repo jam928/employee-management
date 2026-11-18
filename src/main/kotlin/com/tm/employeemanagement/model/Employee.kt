@@ -1,12 +1,12 @@
 package com.tm.employeemanagement.model
 
 import java.io.Serializable
-import javax.persistence.*
+import jakarta.persistence.*
 
 @Entity
 class Employee: Serializable {
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(nullable = false, updatable = false)
     var id: Long? = null
     var name: String? = null

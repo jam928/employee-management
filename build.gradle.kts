@@ -1,49 +1,104 @@
-import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
-
 plugins {
-	id("org.springframework.boot") version "2.5.4"
-	id("io.spring.dependency-management") version "1.0.11.RELEASE"
-	kotlin("jvm") version "1.5.21"
-	kotlin("plugin.spring") version "1.5.21"
-	kotlin("plugin.jpa") version "1.5.21"
+	id("org.springframework.boot") version "4.1.2"
+	id("io.spring.dependency-management") version "1.1.7"
+	kotlin("jvm") version "2.3.21"
+	kotlin("plugin.spring") version "2.3.21"
+	kotlin("plugin.jpa") version "2.3.21"
+	kotlin("kapt") version "2.3.21"
 	idea
+	jacoco
 }
 
 group = "com.tm"
 version = "0.0.1-SNAPSHOT"
-java.sourceCompatibility = JavaVersion.VERSION_1_8
+
+java {
+	toolchain {
+		languageVersion.set(JavaLanguageVersion.of(21))
+	}
+}
 
 repositories {
 	mavenCentral()
 }
 
 dependencies {
-	implementation("org.springframework.boot:spring-boot-starter-actuator:2.5.4")
-	implementation("org.springframework.boot:spring-boot-starter-data-jpa:2.5.5")
-	implementation("org.springframework.boot:spring-boot-starter-web:2.5.5")
-	implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.12.5")
+	implementation("org.springframework.boot:spring-boot-starter-actuator")
+	implementation("org.springframework.boot:spring-boot-starter-data-jpa")
+	implementation("org.springframework.boot:spring-boot-starter-webmvc")
+	implementation("org.springframework.boot:spring-boot-starter-flyway")
+	implementation("org.flywaydb:flyway-mysql")
+	implementation("tools.jackson.module:jackson-module-kotlin")
 	implementation("org.jetbrains.kotlin:kotlin-reflect")
-	implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
-	runtimeOnly("mysql:mysql-connector-java:8.0.25")
-	implementation("org.apache.httpcomponents:httpclient:4.5.13")
-	testImplementation("org.springframework.boot:spring-boot-starter-test:2.5.5")
-	testImplementation("io.mockk:mockk:1.12.0")
-	testImplementation("org.jetbrains.kotlin:kotlin-test:1.3.21")
-	testImplementation("org.jetbrains.kotlin:kotlin-test-junit:1.3.21")
-	testImplementation("com.h2database:h2:1.4.200")
-	implementation ("com.fasterxml.jackson.module:jackson-module-kotlin:2.8.+")
+	implementation("org.mapstruct:mapstruct:1.6.3")
+	implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:3.2.0")
+	runtimeOnly("com.mysql:mysql-connector-j")
+	kapt("org.mapstruct:mapstruct-processor:1.6.3")
+	testImplementation("org.springframework.boot:spring-boot-starter-test")
+	testImplementation("org.springframework.boot:spring-boot-starter-webmvc-test")
+	testImplementation("org.springframework.boot:spring-boot-testcontainers")
+	testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+	testImplementation("org.testcontainers:testcontainers-mysql")
+	testImplementation("io.mockk:mockk:1.14.12")
+	testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.withType<KotlinCompile> {
-	kotlinOptions {
-		freeCompilerArgs = listOf("-Xjsr305=strict")
-		jvmTarget = "1.8"
+kapt {
+	arguments {
+		arg("mapstruct.defaultComponentModel", "spring")
+		arg("mapstruct.unmappedTargetPolicy", "ERROR")
+	}
+}
+
+kotlin {
+	compilerOptions {
+		freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
 	}
 }
 
 tasks.withType<Test> {
-	useJUnitPlatform {
-		includeEngines("junit-jupiter")
-		includeEngines("junit-vintage")
+	useJUnitPlatform()
+	// MockK attaches its agent at runtime
+	jvmArgs("-XX:+EnableDynamicAgentLoading")
+	testLogging {
+		events("passed", "skipped", "failed")
+	}
+	finalizedBy(tasks.jacocoTestReport)
+}
+
+jacoco {
+	toolVersion = "0.8.16"
+}
+
+tasks.jacocoTestReport {
+	dependsOn(tasks.test)
+	reports {
+		xml.required.set(true)
+		html.required.set(true)
+	}
+	finalizedBy("jacocoCoverageSummary")
+}
+
+// Prints the overall coverage numbers from the JaCoCo XML report to the console
+tasks.register("jacocoCoverageSummary") {
+	dependsOn(tasks.jacocoTestReport)
+	doLast {
+		val report = tasks.jacocoTestReport.get().reports.xml.outputLocation.get().asFile
+		if (!report.exists()) return@doLast
+		val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
+		factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+		val root = factory.newDocumentBuilder().parse(report).documentElement
+		println("\n===== Code Coverage =====")
+		val counters = root.childNodes
+		for (i in 0 until counters.length) {
+			val node = counters.item(i) as? org.w3c.dom.Element ?: continue
+			if (node.tagName != "counter") continue
+			val missed = node.getAttribute("missed").toDouble()
+			val covered = node.getAttribute("covered").toDouble()
+			val pct = if (missed + covered == 0.0) 0.0 else covered * 100 / (missed + covered)
+			println("%-12s %6.2f%%  (%d/%d)".format(node.getAttribute("type"), pct, covered.toInt(), (missed + covered).toInt()))
+		}
+		println("HTML report: ${tasks.jacocoTestReport.get().reports.html.outputLocation.get().asFile}/index.html\n")
 	}
 }
