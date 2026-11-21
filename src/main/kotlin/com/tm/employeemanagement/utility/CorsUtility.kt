@@ -12,7 +12,7 @@ class CorsUtility {
     fun corsFilter() : CorsFilter {
         val corsConfiguration = CorsConfiguration()
         corsConfiguration.allowCredentials = true
-        corsConfiguration.allowedOrigins = mutableListOf("http://localhost:4200")
+        corsConfiguration.allowedOrigins = mutableListOf("http://localhost:4200", "http://localhost:4400")
         corsConfiguration.allowedHeaders = mutableListOf("Origin", "Access-Control-Allow-Origin", "Content-Type",
             "Accept", "Authorization", "Origin, Accept", "X-Requested-With",
             "Access-Control-Request-Method", "Accees-Control-Request-Headers")
